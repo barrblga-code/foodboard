@@ -12,6 +12,10 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = 'super_secret_key_123'
 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+
 # PostgreSQL от Render (или SQLite локально)
 #app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 #app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -321,5 +325,6 @@ def add_ad():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
