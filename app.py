@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = 'super_secret_key_123'
 
+# PostgreSQL от Render (или SQLite локально)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -220,13 +221,18 @@ def toggle_favorite(ad_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-        name = request.form['name']
-        phone = request.form['phone']
-        city = request.form['city']
+        email = request.form.get('email')
+        password = request.form.get('password')
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+        city = request.form.get('city')
 
-        # ПРОВЕРКА НА СУЩЕСТВУЮЩИЙ EMAIL — это исправит краш
+        # Защита от пустых полей
+        if not all([email, password, name, phone, city]):
+            flash('Заполните все поля!')
+            return redirect(url_for('register'))
+
+        # Проверка на существующий email
         if User.query.filter_by(email=email).first():
             flash('Этот email уже зарегистрирован. Войдите или используйте другой.')
             return redirect(url_for('register'))
@@ -242,10 +248,16 @@ def register():
             latitude=lat,
             longitude=lon
         )
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Регистрация прошла успешно! Координаты ' + ('найдены 😊' if lat else 'не найдены 😔'))
-        return redirect(url_for('login'))
+
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Регистрация прошла успешно! Координаты ' + ('найдены 😊' if lat else 'не найдены 😔'))
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Ошибка при регистрации. Попробуйте другой email или проверьте данные.')
+            return redirect(url_for('register'))
 
     return render_template('register.html')
 
