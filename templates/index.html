@@ -2,7 +2,7 @@
 {% block content %}
 <h1 class="mb-4">
     {% if nearby_mode %}
-        Объявления рядом с вашей локацией (радиус 400 км)
+        Объявления рядом (радиус {{ radius_km }} км)
     {% else %}
         Все объявления
     {% endif %}
@@ -12,7 +12,7 @@
     <p class="mb-4"><a href="{{ url_for('index') }}">← Показать все объявления</a></p>
 {% endif %}
 
-<!-- Форма поиска по городу и тексту -->
+<!-- Форма поиска + радиус -->
 <div class="mb-4 p-3 border rounded bg-white">
     <form class="row g-3 align-items-end">
         <div class="col-md-4">
@@ -21,13 +21,23 @@
         <div class="col-md-4">
             <input type="text" name="near_city" class="form-control" placeholder="Город для поиска рядом" value="{{ current_city or '' }}">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-2">
+            <select name="radius" class="form-select">
+                <option value="100" {% if radius == 100 %}selected{% endif %}>100 км</option>
+                <option value="200" {% if radius == 200 %}selected{% endif %}>200 км</option>
+                <option value="300" {% if radius == 300 %}selected{% endif %}>300 км</option>
+                <option value="400" {% if radius == 400 or not radius %}selected{% endif %}>400 км</option>
+                <option value="500">500 км</option>
+                <option value="1000">Вся область</option>
+            </select>
+        </div>
+        <div class="col-md-2">
             <button type="submit" class="btn btn-success w-100">Найти</button>
         </div>
     </form>
 </div>
 
-<!-- Кнопка от моей локации -->
+<!-- Кнопка геолокации -->
 <button id="nearby-btn" class="btn btn-primary mb-4">📍 От моей текущей локации</button>
 
 <script>
@@ -37,10 +47,10 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
             position => {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
-                window.location.href = `/?lat=${lat}&lon=${lon}`;
+                window.location.href = `/?lat=${lat}&lon=${lon}&radius=400`;
             },
             error => {
-                alert('Не удалось получить локацию. Разрешите доступ в настройках браузера или используйте поиск по городу.');
+                alert('Не удалось получить локацию. Разрешите доступ в настройках браузера или используйте выбор радиуса выше.');
             }
         );
     } else {
@@ -49,7 +59,7 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
 });
 </script>
 
-<!-- Категории -->
+<!-- Категории и объявления (как раньше) -->
 <div class="row mb-4">
     <div class="col">
         <h5>Категории:</h5>
@@ -60,7 +70,6 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
     </div>
 </div>
 
-<!-- Объявления с расстоянием -->
 <div class="row">
     {% for ad in ads %}
     <div class="col-md-4 mb-4">
@@ -72,13 +81,10 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
                 <h5 class="card-title">{{ ad.title }}</h5>
                 <p class="card-text flex-grow-1">{{ ad.description[:150] }}...</p>
                 <p class="card-text"><strong>Цена: {{ ad.price }} ₽</strong></p>
-                
-                <!-- Расстояние показывается только в режиме "рядом" -->
                 {% if nearby_mode and ad.distance is defined %}
-                    <p class="card-text text-success"><strong>≈ {{ ad.distance }} км от вас</strong></p>
+                    <p class="card-text text-success"><strong>≈ {{ ad.distance }} км</strong></p>
                 {% endif %}
-                
-                <p class="card-text text-muted"><small>Продавец: {{ ad.seller.city }}</small></p>
+                <p class="card-text text-muted"><small>Продавец из: {{ ad.seller.city }}</small></p>
 
                 {% if current_user.is_authenticated %}
                     <form method="POST" action="{{ url_for('toggle_favorite', ad_id=ad.id) }}" class="mt-2">
@@ -95,7 +101,7 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
         </div>
     </div>
     {% else %}
-    <p>Пока нет объявлений рядом или по запросу.</p>
+    <p>Ничего не найдено. Попробуйте другой запрос или радиус.</p>
     {% endfor %}
 </div>
 {% endblock %}
