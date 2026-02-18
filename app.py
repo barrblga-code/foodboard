@@ -13,10 +13,10 @@ app.config.from_object(Config)
 app.secret_key = 'super_secret_key_123'
 
 # PostgreSQL от Render (или SQLite локально)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+#app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
+#app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db.init_app(app)
+#db.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -321,4 +321,5 @@ def add_ad():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
