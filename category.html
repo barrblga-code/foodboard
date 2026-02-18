@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">{{ category.name }}</h1>
+<a href="{{ url_for('index') }}" class="btn btn-outline-secondary mb-3">← Назад ко всем</a>
+
+<div class="row">
+    {% for ad in ads %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            {% if ad.image %}
+                <img src="{{ url_for('static', filename='uploads/' + ad.image) }}" class="card-img-top" style="height:200px; object-fit:cover;">
+            {% endif %}
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">{{ ad.title }}</h5>
+                <p class="card-text flex-grow-1">{{ ad.description[:150] }}...</p>
+                <p class="card-text"><strong>Цена: {{ ad.price }} ₽</strong></p>
+                <a href="{{ url_for('ad_detail', ad_id=ad.id) }}" class="btn btn-success mt-auto">Подробнее</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <p>В этой категории пока ничего нет.</p>
+    {% endfor %}
+</div>
+{% endblock %}
