@@ -51,7 +51,7 @@ def geocode_city(city):
     try:
         query_city = f"{city}, Оренбургская область, Россия"
         url = f"https://nominatim.openstreetmap.org/search?q={query_city}&format=json&limit=1"
-        headers = {'User-Agent': 'foodboard/1.0 (твой_реальный_email@mail.ru)'}
+        headers = {'User-Agent': 'foodboard/1.0 (dyakovdeins@mail.ru)'}
         response = requests.get(url, headers=headers, timeout=10)
         if response.ok and response.json():
             data = response.json()[0]
@@ -299,3 +299,4 @@ def add_ad():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
