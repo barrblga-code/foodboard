@@ -32,7 +32,10 @@
         {% endfor %}
     </div>
 {% else %}
-    <p>У вас пока нет объявлений. <a href="{{ url_for('add_ad') }}" class="btn btn-success btn-sm">Добавить первое</a></p>
+    <div class="alert alert-info">
+        У вас пока нет объявлений. 
+        <a href="{{ url_for('add_ad') }}" class="btn btn-success btn-sm ms-2">Добавить первое</a>
+    </div>
 {% endif %}
 
 <h2 class="mt-5">Избранное</h2>
@@ -57,6 +60,9 @@
         {% endfor %}
     </div>
 {% else %}
-    <p>Пока ничего в избранном. Добавляй объявления, которые понравились!</p>
+    <div class="alert alert-info">
+        Пока ничего в избранном. Добавляй объявления, которые понравились!
+    </div>
 {% endif %}
+
 {% endblock %}
