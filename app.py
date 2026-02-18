@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, Ad, Category, User, favorites
 from config import Config
@@ -33,15 +33,14 @@ CATEGORIES = [
 ]
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # Радиус Земли в км
+    R = 6371
     dlat = radians(lat2 - lat1)
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
@@ -76,14 +75,13 @@ def index():
     search_query = request.args.get('q')
     radius = request.args.get('radius', type=int, default=400)
 
-    # Защита от некорректного радиуса
     if radius not in [100, 200, 300, 400, 500, 1000]:
         radius = 400
 
     if near_city:
         user_lat, user_lon = geocode_city(near_city)
         if user_lat is None:
-            flash(f'Город "{near_city}" не найден — показываем все объявления')
+            flash(f'Город "{near_city}" не найден — показываем все')
             near_city = None
 
     nearby_mode = bool(user_lat and user_lon)
@@ -117,6 +115,65 @@ def index():
     categories = Category.query.all()
     return render_template('index.html', ads=ads, categories=categories, nearby_mode=nearby_mode,
                            current_city=current_city, search_query=search_query or '', radius=radius)
+
+@app.route('/load_more')
+def load_more():
+    page = request.args.get('page', type=int, default=1)
+    per_page = 12
+
+    user_lat = request.args.get('lat', type=float)
+    user_lon = request.args.get('lon', type=float)
+    near_city = request.args.get('near_city')
+    search_query = request.args.get('q')
+    radius = request.args.get('radius', type=int, default=400)
+
+    if near_city:
+        user_lat, user_lon = geocode_city(near_city)
+
+    nearby_mode = bool(user_lat and user_lon)
+
+    ads_query = Ad.query.order_by(Ad.created_at.desc())
+
+    if search_query:
+        words = search_query.strip().split()
+        for word in words:
+            pattern = f"%{word}%"
+            ads_query = ads_query.filter(
+                (Ad.title.ilike(pattern)) | (Ad.description.ilike(pattern))
+            )
+
+    # Пагинация
+    pagination = ads_query.paginate(page=page, per_page=per_page, error_out=False)
+    ads = pagination.items
+
+    if nearby_mode:
+        filtered_ads = []
+        for ad in ads:
+            if ad.seller.latitude and ad.seller.longitude:
+                distance = haversine(user_lat, user_lon, ad.seller.latitude, ad.seller.longitude)
+                if distance <= radius:
+                    ad.distance = round(distance)
+                    filtered_ads.append(ad)
+        ads = filtered_ads
+
+    ads_data = []
+    for ad in ads:
+        ads_data.append({
+            'id': ad.id,
+            'title': ad.title,
+            'description': ad.description,
+            'price': ad.price,
+            'image': ad.image,
+            'seller_city': ad.seller.city,
+            'distance': getattr(ad, 'distance', None),
+            'is_favorite': current_user.is_authenticated and ad in current_user.favorites
+        })
+
+    return jsonify({
+        'ads': ads_data,
+        'nearby_mode': nearby_mode,
+        'current_user_authenticated': current_user.is_authenticated
+    })
 
 @app.route('/category/<int:cat_id>')
 def category(cat_id):
@@ -239,65 +296,7 @@ def add_ad():
         return redirect(url_for('index'))
 
     return render_template('add_ad.html', categories=categories)
-@app.route('/load_more')
-def load_more():
-    page = request.args.get('page', type=int, default=1)
-    per_page = 12  # сколько объявлений за раз
 
-    user_lat = request.args.get('lat', type=float)
-    user_lon = request.args.get('lon', type=float)
-    near_city = request.args.get('near_city')
-    search_query = request.args.get('q')
-    radius = request.args.get('radius', type=int, default=400)
-
-    if near_city:
-        user_lat, user_lon = geocode_city(near_city)
-
-    nearby_mode = bool(user_lat and user_lon)
-
-    ads_query = Ad.query.order_by(Ad.created_at.desc())
-
-    if search_query:
-        words = search_query.strip().split()
-        for word in words:
-            pattern = f"%{word}%"
-            ads_query = ads_query.filter(
-                (Ad.title.ilike(pattern)) | (Ad.description.ilike(pattern))
-            )
-
-    # Пагинация
-    ads = ads_query.paginate(page=page, per_page=per_page, error_out=False).items
-
-    if nearby_mode:
-        filtered_ads = []
-        for ad in ads:
-            if ad.seller.latitude and ad.seller.longitude:
-                distance = haversine(user_lat, user_lon, ad.seller.latitude, ad.seller.longitude)
-                if distance <= radius:
-                    ad.distance = round(distance)
-                    filtered_ads.append(ad)
-        ads = filtered_ads
-
-    # Подготовка данных для JSON
-    ads_data = []
-    for ad in ads:
-        ads_data.append({
-            'id': ad.id,
-            'title': ad.title,
-            'description': ad.description,
-            'price': ad.price,
-            'image': ad.image,
-            'seller_city': ad.seller.city,
-            'distance': ad.distance if hasattr(ad, 'distance') else None,
-            'is_favorite': current_user.is_authenticated and ad in current_user.favorites
-        })
-
-    return {
-        'ads': ads_data,
-        'nearby_mode': nearby_mode,
-        'current_user_authenticated': current_user.is_authenticated
-    }
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-
