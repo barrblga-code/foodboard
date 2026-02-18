@@ -81,9 +81,9 @@ def index():
             flash(f'Город "{near_city}" не найден — показываем все')
             near_city = None
 
-    nearby_mode = bool(user_lat and user_lon)
-    current_city = near_city if near_city else None
-    radius = 400
+    radius = request.args.get('radius', type=int, default=400)
+    if radius not in [100, 200, 300, 400, 500, 1000]:
+        radius = 400
 
     ads_query = Ad.query.order_by(Ad.created_at.desc())
 
@@ -97,7 +97,7 @@ def index():
 
     all_ads = ads_query.all()
 
-    if nearby_mode:
+   if nearby_mode:
         ads = []
         for ad in all_ads:
             if ad.seller.latitude and ad.seller.longitude:
@@ -109,7 +109,7 @@ def index():
             flash(f'В радиусе {radius} км ничего не найдено')
     else:
         ads = all_ads
-
+   
     categories = Category.query.all()
     return render_template('index.html', ads=ads, categories=categories, nearby_mode=nearby_mode,
                            current_city=current_city, search_query=search_query or '')
@@ -299,4 +299,5 @@ def add_ad():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
