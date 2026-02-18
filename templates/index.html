@@ -2,27 +2,27 @@
 {% block content %}
 <h1 class="mb-4">
     {% if nearby_mode %}
-        Объявления рядом (радиус {{ radius_km }} км)
+        Объявления рядом (радиус {{ radius }} км)
     {% else %}
         Все объявления
     {% endif %}
 </h1>
 
 {% if nearby_mode %}
-    <p class="mb-4"><a href="{{ url_for('index') }}">← Показать все объявления</a></p>
+    <p class="mb-4"><a href="{{ url_for('index') }}">← Показать все</a></p>
 {% endif %}
 
 <!-- Форма поиска + радиус -->
 <div class="mb-4 p-3 border rounded bg-white">
-    <form class="row g-3 align-items-end">
+    <form id="searchForm" class="row g-3 align-items-end">
         <div class="col-md-4">
             <input type="text" name="q" class="form-control" placeholder="Поиск (торт, огурцы, мёд...)" value="{{ search_query }}">
         </div>
-        <div class="col-md-4">
-            <input type="text" name="near_city" class="form-control" placeholder="Город для поиска рядом" value="{{ current_city or '' }}">
+        <div class="col-md-3">
+            <input type="text" name="near_city" class="form-control" placeholder="Город (Оренбург, Шарлык...)" value="{{ current_city or '' }}">
         </div>
         <div class="col-md-2">
-            <select name="radius" class="form-select">
+            <select name="radius" class="form-select" id="radiusSelect">
                 <option value="100" {% if radius == 100 %}selected{% endif %}>100 км</option>
                 <option value="200" {% if radius == 200 %}selected{% endif %}>200 км</option>
                 <option value="300" {% if radius == 300 %}selected{% endif %}>300 км</option>
@@ -41,25 +41,99 @@
 <button id="nearby-btn" class="btn btn-primary mb-4">📍 От моей текущей локации</button>
 
 <script>
+// Геолокация по кнопке
 document.getElementById('nearby-btn').addEventListener('click', () => {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             position => {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
-                window.location.href = `/?lat=${lat}&lon=${lon}&radius=400`;
+                const radius = document.getElementById('radiusSelect').value;
+                window.location.href = `/?lat=${lat}&lon=${lon}&radius=${radius}`;
             },
             error => {
-                alert('Не удалось получить локацию. Разрешите доступ в настройках браузера или используйте выбор радиуса выше.');
+                alert('Не удалось получить локацию. Разрешите доступ или используйте выбор города.');
             }
         );
     } else {
         alert('Браузер не поддерживает геолокацию.');
     }
 });
+
+// Бесконечная прокрутка
+let page = 1;
+let loading = false;
+let hasMore = true;
+
+window.addEventListener('scroll', () => {
+    if (loading || !hasMore) return;
+
+    const scrollPosition = window.innerHeight + window.scrollY;
+    const pageHeight = document.body.offsetHeight;
+
+    if (scrollPosition >= pageHeight - 300) {  // 300px до конца страницы
+        loading = true;
+        loadMoreAds();
+    }
+});
+
+function loadMoreAds() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const q = urlParams.get('q') || '';
+    const near_city = urlParams.get('near_city') || '';
+    const radius = urlParams.get('radius') || 400;
+    const lat = urlParams.get('lat') || '';
+    const lon = urlParams.get('lon') || '';
+
+    fetch(`/load_more?page=${page + 1}&q=${encodeURIComponent(q)}&near_city=${encodeURIComponent(near_city)}&radius=${radius}&lat=${lat}&lon=${lon}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.ads.length === 0) {
+                hasMore = false;
+                return;
+            }
+
+            const container = document.querySelector('.row');
+            data.ads.forEach(ad => {
+                const card = `
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            ${ad.image ? `<img src="/static/uploads/${ad.image}" class="card-img-top" style="height:200px; object-fit:cover;">` : ''}
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">${ad.title}</h5>
+                                <p class="card-text flex-grow-1">${ad.description.substring(0, 150)}...</p>
+                                <p class="card-text"><strong>Цена: ${ad.price} ₽</strong></p>
+                                ${data.nearby_mode && ad.distance ? `<p class="card-text text-success"><strong>≈ ${ad.distance} км</strong></p>` : ''}
+                                <p class="card-text text-muted"><small>Продавец из: ${ad.seller_city}</small></p>
+
+                                ${data.current_user_authenticated ? `
+                                    <form method="POST" action="/toggle_favorite/${ad.id}" class="mt-2">
+                                        ${ad.is_favorite ? 
+                                            '<button type="submit" class="btn btn-outline-danger btn-sm">Убрать из избранного</button>' :
+                                            '<button type="submit" class="btn btn-outline-primary btn-sm">В избранное</button>'
+                                        }
+                                    </form>
+                                ` : ''}
+
+                                <a href="/ad/${ad.id}" class="btn btn-success mt-auto">Подробнее</a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', card);
+            });
+
+            page += 1;
+            loading = false;
+        })
+        .catch(error => {
+            console.error('Ошибка подгрузки:', error);
+            loading = false;
+        });
+}
 </script>
 
-<!-- Категории и объявления (как раньше) -->
+<!-- Категории -->
 <div class="row mb-4">
     <div class="col">
         <h5>Категории:</h5>
@@ -70,7 +144,8 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
     </div>
 </div>
 
-<div class="row">
+<!-- Объявления (начальные 12) -->
+<div class="row" id="ads-container">
     {% for ad in ads %}
     <div class="col-md-4 mb-4">
         <div class="card h-100">
@@ -101,7 +176,7 @@ document.getElementById('nearby-btn').addEventListener('click', () => {
         </div>
     </div>
     {% else %}
-    <p>Ничего не найдено. Попробуйте другой запрос или радиус.</p>
+    <p>Пока ничего нет. Добавь объявление!</p>
     {% endfor %}
 </div>
 {% endblock %}
