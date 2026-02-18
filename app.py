@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, Ad, Category, User, favorites  # ← добавим favorites
+from models import db, Ad, Category, User, favorites
 from config import Config
 import os
 from werkzeug.utils import secure_filename
@@ -33,14 +33,15 @@ CATEGORIES = [
 ]
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371
+    R = 6371  # Радиус Земли в км
     dlat = radians(lat2 - lat1)
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
@@ -51,13 +52,12 @@ def geocode_city(city):
     try:
         query_city = f"{city}, Оренбургская область, Россия"
         url = f"https://nominatim.openstreetmap.org/search?q={query_city}&format=json&limit=1"
-        headers = {'User-Agent': 'foodboard/1.0 (dyakovdeins@mail.ru)'}
+        headers = {'User-Agent': 'foodboard/1.0 (dyakovdenis@mail.ru)'}
         response = requests.get(url, headers=headers, timeout=10)
         if response.ok and response.json():
             data = response.json()[0]
             return float(data['lat']), float(data['lon'])
-        else:
-            return None, None
+        return None, None
     except:
         return None, None
 
@@ -74,16 +74,20 @@ def index():
     user_lon = request.args.get('lon', type=float)
     near_city = request.args.get('near_city')
     search_query = request.args.get('q')
+    radius = request.args.get('radius', type=int, default=400)
+
+    # Защита от некорректного радиуса
+    if radius not in [100, 200, 300, 400, 500, 1000]:
+        radius = 400
 
     if near_city:
         user_lat, user_lon = geocode_city(near_city)
         if user_lat is None:
-            flash(f'Город "{near_city}" не найден — показываем все')
+            flash(f'Город "{near_city}" не найден — показываем все объявления')
             near_city = None
 
-    radius = request.args.get('radius', type=int, default=400)
-    if radius not in [100, 200, 300, 400, 500, 1000]:
-        radius = 400
+    nearby_mode = bool(user_lat and user_lon)
+    current_city = near_city if near_city else None
 
     ads_query = Ad.query.order_by(Ad.created_at.desc())
 
@@ -97,7 +101,7 @@ def index():
 
     all_ads = ads_query.all()
 
-   if nearby_mode:
+    if nearby_mode:
         ads = []
         for ad in all_ads:
             if ad.seller.latitude and ad.seller.longitude:
@@ -109,10 +113,10 @@ def index():
             flash(f'В радиусе {radius} км ничего не найдено')
     else:
         ads = all_ads
-   
+
     categories = Category.query.all()
     return render_template('index.html', ads=ads, categories=categories, nearby_mode=nearby_mode,
-                           current_city=current_city, search_query=search_query or '')
+                           current_city=current_city, search_query=search_query or '', radius=radius)
 
 @app.route('/category/<int:cat_id>')
 def category(cat_id):
@@ -135,66 +139,6 @@ def profile():
     favorite_ads = current_user.favorites
     categories = Category.query.all()
     return render_template('profile.html', my_ads=my_ads, favorite_ads=favorite_ads, categories=categories)
-
-@app.route('/edit_profile', methods=['GET', 'POST'])
-@login_required
-def edit_profile():
-    if request.method == 'POST':
-        current_user.name = request.form['name']
-        current_user.phone = request.form['phone']
-        city = request.form['city']
-        current_user.city = city
-        lat, lon = geocode_city(city)
-        current_user.latitude = lat
-        current_user.longitude = lon
-        db.session.commit()
-        flash('Профиль обновлён!' + (' Координаты обновлены' if lat else ' Город не найден'))
-        return redirect(url_for('profile'))
-
-    categories = Category.query.all()
-    return render_template('edit_profile.html', categories=categories)
-
-@app.route('/edit_ad/<int:ad_id>', methods=['GET', 'POST'])
-@login_required
-def edit_ad(ad_id):
-    ad = Ad.query.get_or_404(ad_id)
-    if ad.user_id != current_user.id:
-        flash('Это не ваше объявление!')
-        return redirect(url_for('profile'))
-
-    categories = Category.query.all()
-
-    if request.method == 'POST':
-        ad.title = request.form['title']
-        ad.description = request.form['description']
-        ad.price = float(request.form['price'])
-        ad.category_id = int(request.form['category'])
-
-        if 'image' in request.files:
-            file = request.files['image']
-            if file and file.filename != '' and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                ad.image = filename
-
-        db.session.commit()
-        flash('Объявление обновлено!')
-        return redirect(url_for('profile'))
-
-    return render_template('edit_ad.html', ad=ad, categories=categories)
-
-@app.route('/delete_ad/<int:ad_id>', methods=['POST'])
-@login_required
-def delete_ad(ad_id):
-    ad = Ad.query.get_or_404(ad_id)
-    if ad.user_id != current_user.id:
-        flash('Это не ваше объявление!')
-        return redirect(url_for('profile'))
-
-    db.session.delete(ad)
-    db.session.commit()
-    flash('Объявление удалено')
-    return redirect(url_for('profile'))
 
 @app.route('/toggle_favorite/<int:ad_id>', methods=['POST'])
 @login_required
@@ -297,7 +241,5 @@ def add_ad():
     return render_template('add_ad.html', categories=categories)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-
-
