@@ -1,5 +1,6 @@
 flask
- flask-sqlalchemy
- flask-login
- werkzeug
- requests
+flask-sqlalchemy
+flask-login
+werkzeug
+requests
+psycopg2-binary  # ← вот это главное! binary-версия, чтобы не собирать из исходников
