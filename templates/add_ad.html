@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Добавить объявление</h1>
+<p>Ваши контакты: {{ current_user.name }}, {{ current_user.phone }}, {{ current_user.city }}</p>
+
+<form method="POST" enctype="multipart/form-data">
+    <div class="mb-3"><label>Заголовок</label><input type="text" name="title" class="form-control" required></div>
+    <div class="mb-3"><label>Описание</label><textarea name="description" class="form-control" rows="5" required></textarea></div>
+    <div class="mb-3"><label>Цена (₽)</label><input type="number" name="price" class="form-control" step="0.01" required></div>
+    <div class="mb-3"><label>Категория</label>
+        <select name="category" class="form-select" required>
+            {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3"><label>Фото (необязательно)</label><input type="file" name="image" class="form-control" accept="image/*"></div>
+    <button type="submit" class="btn btn-success">Опубликовать</button>
+</form>
+{% endblock %}
