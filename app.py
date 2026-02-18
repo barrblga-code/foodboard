@@ -12,6 +12,10 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = 'super_secret_key_123'
 
+# Подключение к PostgreSQL от Render (если переменная есть) или fallback на SQLite локально
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db.init_app(app)
 
 login_manager = LoginManager()
@@ -142,7 +146,6 @@ def load_more():
                 (Ad.title.ilike(pattern)) | (Ad.description.ilike(pattern))
             )
 
-    # Пагинация
     pagination = ads_query.paginate(page=page, per_page=per_page, error_out=False)
     ads = pagination.items
 
