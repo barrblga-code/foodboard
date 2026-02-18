@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = 'super_secret_key_123'
 
-# Подключение к PostgreSQL от Render (или SQLite локально)
+# PostgreSQL от Render или SQLite локально
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -227,8 +227,9 @@ def register():
         phone = request.form['phone']
         city = request.form['city']
 
-        # Проверка на дубликат email — это главное исправление
-        if User.query.filter_by(email=email).first():
+        # Проверка на существующий email — это исправит краш
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
             flash('Этот email уже зарегистрирован. Войдите или используйте другой.')
             return redirect(url_for('register'))
 
