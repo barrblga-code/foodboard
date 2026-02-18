@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Редактировать объявление</h1>
+
+<form method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label class="form-label">Заголовок</label>
+        <input type="text" name="title" class="form-control" value="{{ ad.title }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Описание</label>
+        <textarea name="description" class="form-control" rows="5" required>{{ ad.description }}</textarea>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Цена (₽)</label>
+        <input type="number" name="price" class="form-control" step="0.01" value="{{ ad.price }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Категория</label>
+        <select name="category" class="form-select" required>
+            {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if cat.id == ad.category_id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Новое фото (оставьте пустым, чтобы не менять)</label>
+        <input type="file" name="image" class="form-control" accept="image/*">
+        {% if ad.image %}
+            <p>Текущее фото: <img src="{{ url_for('static', filename='uploads/' + ad.image) }}" style="height:100px;"></p>
+        {% endif %}
+    </div>
+    <button type="submit" class="btn btn-success">Сохранить изменения</button>
+    <a href="{{ url_for('profile') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}

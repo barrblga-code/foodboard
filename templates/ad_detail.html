@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">{{ ad.title }}</h1>
+<a href="{{ url_for('index') }}" class="btn btn-outline-secondary mb-3">← Назад</a>
+
+<div class="card">
+    {% if ad.image %}
+        <img src="{{ url_for('static', filename='uploads/' + ad.image) }}" class="card-img-top">
+    {% endif %}
+    <div class="card-body">
+        <p><strong>Цена:</strong> {{ ad.price }} ₽</p>
+        <p><strong>Категория:</strong> {{ ad.category.name }}</p>
+        <p><strong>Продавец:</strong> {{ ad.seller.name }}</p>
+        <p><strong>Телефон:</strong> <a href="tel:{{ ad.seller.phone }}">{{ ad.seller.phone }}</a></p>
+        <p><strong>Город:</strong> {{ ad.seller.city }}</p>
+
+        {% if nearby_mode and ad.distance is defined %}
+            <p><strong>Расстояние:</strong> ≈ {{ ad.distance }} км</p>
+        {% endif %}
+
+        <p><strong>Описание:</strong></p>
+        <p>{{ ad.description }}</p>
+        <small class="text-muted">Добавлено: {{ ad.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+
+        {% if current_user.is_authenticated %}
+            <form method="POST" action="{{ url_for('toggle_favorite', ad_id=ad.id) }}" class="mt-3">
+                {% if is_favorite %}
+                    <button type="submit" class="btn btn-outline-danger">Убрать из избранного</button>
+                {% else %}
+                    <button type="submit" class="btn btn-outline-primary">Добавить в избранное</button>
+                {% endif %}
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
