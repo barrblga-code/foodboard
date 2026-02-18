@@ -221,27 +221,30 @@ def toggle_favorite(ad_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        name = request.form.get('name')
-        phone = request.form.get('phone')
-        city = request.form.get('city')
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        name = request.form.get('name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        city = request.form.get('city', '').strip()
 
-        # Защита от пустых полей
         if not all([email, password, name, phone, city]):
             flash('Заполните все поля!')
             return redirect(url_for('register'))
 
         # Проверка на существующий email
-        if User.query.filter_by(email=email).first():
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
             flash('Этот email уже зарегистрирован. Войдите или используйте другой.')
             return redirect(url_for('register'))
+
+        # Хэшируем пароль
+        hashed_password = generate_password_hash(password)
 
         lat, lon = geocode_city(city)
 
         new_user = User(
             email=email,
-            password=generate_password_hash(password),
+            password=hashed_password,
             name=name,
             phone=phone,
             city=city,
@@ -250,17 +253,20 @@ def register():
         )
 
         try:
+            print(f"Попытка добавить пользователя: {email}")
             db.session.add(new_user)
+            print("Пользователь добавлен в сессию")
             db.session.commit()
+            print("Коммит прошёл успешно")
             flash('Регистрация прошла успешно! Координаты ' + ('найдены 😊' if lat else 'не найдены 😔'))
             return redirect(url_for('login'))
         except Exception as e:
             db.session.rollback()
-            flash('Ошибка при регистрации. Попробуйте другой email или проверьте данные.')
+            print(f"Ошибка при регистрации: {str(e)}")
+            flash(f'Ошибка при регистрации: {str(e)}. Попробуйте другой email или проверьте данные.')
             return redirect(url_for('register'))
 
     return render_template('register.html')
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -315,3 +321,4 @@ def add_ad():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
