@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Редактировать профиль</h1>
+
+<form method="POST">
+    <div class="mb-3">
+        <label class="form-label">Имя или ник</label>
+        <input type="text" name="name" class="form-control" value="{{ current_user.name }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Телефон</label>
+        <input type="tel" name="phone" class="form-control" value="{{ current_user.phone }}" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Город / регион</label>
+        <input type="text" name="city" class="form-control" value="{{ current_user.city }}" required>
+    </div>
+    <button type="submit" class="btn btn-success">Сохранить</button>
+    <a href="{{ url_for('profile') }}" class="btn btn-secondary">Отмена</a>
+</form>
+{% endblock %}
