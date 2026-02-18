@@ -12,12 +12,13 @@
     <p class="mb-4"><a href="{{ url_for('index') }}">← Показать все объявления</a></p>
 {% endif %}
 
+<!-- Форма поиска -->
 <div class="mb-4 p-3 border rounded bg-white">
     <form class="row g-3 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-5">
             <input type="text" name="q" class="form-control" placeholder="Поиск (торт, огурцы, мёд...)" value="{{ search_query }}">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-5">
             <input type="text" name="near_city" class="form-control" placeholder="Город для поиска рядом" value="{{ current_city or '' }}">
         </div>
         <div class="col-md-2">
@@ -26,8 +27,12 @@
     </form>
 </div>
 
+<!-- Кнопка геолокации -->
 {% if not nearby_mode %}
-<button id="nearby-btn" class="btn btn-outline-primary mb-4">📍 От моей текущей локации</button>
+<div class="mb-4">
+    <button id="nearby-btn" class="btn btn-primary">📍 От моей текущей локации</button>
+    <small class="text-muted ms-2">(браузер попросит разрешение)</small>
+</div>
 {% endif %}
 
 <script>
@@ -43,15 +48,24 @@ document.getElementById('nearby-btn')?.addEventListener('click', () => {
                 window.location.search = currentParams.toString();
             },
             error => {
-                alert('Не удалось получить локацию. Используйте поле "Город" выше.');
+                let msg = 'Не удалось получить локацию.';
+                if (error.code === error.PERMISSION_DENIED) {
+                    msg += ' Разрешите доступ к геолокации в настройках браузера.';
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    msg += ' Локация недоступна (возможно VPN или настройки).';
+                } else {
+                    msg += ' Попробуйте позже или используйте поиск по городу.';
+                }
+                alert(msg);
             }
         );
     } else {
-        alert('Браузер не поддерживает геолокацию.');
+        alert('Ваш браузер не поддерживает геолокацию. Используйте поиск по городу.');
     }
 });
 </script>
 
+<!-- Категории -->
 <div class="row mb-4">
     <div class="col">
         <h5>Категории:</h5>
@@ -62,6 +76,7 @@ document.getElementById('nearby-btn')?.addEventListener('click', () => {
     </div>
 </div>
 
+<!-- Объявления -->
 <div class="row">
     {% for ad in ads %}
     <div class="col-md-4 mb-4">
@@ -74,7 +89,7 @@ document.getElementById('nearby-btn')?.addEventListener('click', () => {
                 <p class="card-text flex-grow-1">{{ ad.description[:150] }}...</p>
                 <p class="card-text"><strong>Цена: {{ ad.price }} ₽</strong></p>
                 {% if nearby_mode and ad.distance is defined %}
-                    <p class="card-text text-success"><strong>≈ {{ ad.distance }} км</strong></p>
+                    <p class="card-text text-success"><strong>≈ {{ ad.distance }} км от вас</strong></p>
                 {% endif %}
                 <p class="card-text text-muted"><small>Продавец из: {{ ad.seller.city }}</small></p>
 
